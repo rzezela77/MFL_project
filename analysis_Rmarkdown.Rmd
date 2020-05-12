@@ -1,0 +1,235 @@
+---
+title: "MFL Project"
+author: "Reinaldo Zezela"
+date: "30/04/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## 1.0 Introdução
+
+Pretende-se com este estudo elaborar um dashboard reporting para facilitar a tomada de decisão com base em dados. Portanto, vamos explorar a análise descritiva dos dados existentes na plataforma DHIS2.
+
+
+### 1.1 Análise Descritiva de Dados
+
+Vamos carregar os dados e as livraria requeridas.
+
+```{r}
+# 1.0 Loading Libraries ---------------------------------------------------
+
+library(tidyverse)
+library(readxl)
+
+library(pander)
+
+library(highcharter)
+
+
+# 1.1 Loading Data --------------------------------------------------------
+
+mfl_data <- read_excel(path = 'data/MFL_v28Abril2020.xlsx', sheet = 'RSP2020')
+
+```
+
+Primeiro, vamos examinar os dados.
+```{r}
+# examine the data
+mfl_data %>% glimpse()
+
+# mfl_data %>% head()
+```
+
+Vamos renomear as variáveis para melhor compreensão do código.
+
+```{r}
+colnames(mfl_data) <- c('CODIGO', 'PROVINCIA', 'DISTRITO', 'UNIDADE_SANITARIA', 'CLASSIFICACAO', 'NIVEL', 'TIPO_US', 'TIPO', 'MATERNIDADE', 'NUM_CAMAS_MATERNIDADE', 'NUM_CAMAS_INTERNAMENTO', 'TOTAL', 'BS')
+
+mfl_data %>% glimpse()
+```
+
+Vamos converter todas variáveis 'character' para 'factor' e ordena-los na order que faz mais sentido.
+```{r}
+
+#  convert all character columns to factor:
+mfl_data <- mutate_if(mfl_data, is.character, as.factor)
+
+# re-order Province from north to south
+
+mfl_data$PROVINCIA <- factor(
+    x = mfl_data$PROVINCIA,
+    levels = c(
+        'CABO DELGADO',
+        'NIASSA',
+        'NAMPULA',
+        'ZAMBÉZIA',
+        'TETE',
+        'MANICA',
+        'SOFALA',
+        'INHAMBANE',
+        'GAZA',
+        'MAPUTO PROVÍNCIA',
+        'MAPUTO CIDADE'
+    )
+)
+
+# re-order tipo unidade sanitaria
+
+mfl_data$TIPO_US <- factor(
+    x = mfl_data$TIPO_US,
+    levels = c(
+        'Hospital Central',
+        'Hospital Geral',
+        'Hospital Provincial',
+        'Hospital Distrital',
+        'Hospital Rural',
+        'Hospital Militar',
+        'Hospital Psiquiatrico',
+        'Centro de Saúde Urbano',
+        'Centro de Saúde Rural',
+        'Posto de Saúde'
+    )
+)
+
+
+mfl_data$TIPO <- factor(
+    x = mfl_data$TIPO,
+    levels = c('HC', 'HG', 'HP', 'HD', 'HR', 'HM', 'HPsi', 'CS', 'PS')
+)
+
+
+```
+
+Para nos entendermos os dados vamos sumariza-los.
+```{r}
+mfl_data %>% summary()
+```
+
+
+## 2.0 Agregar os dados
+
+### 2.1 Tipo de Unidade
+
+Vamos agrupar as unidades sanitárias por província e tipo de unidade sanitária.
+```{r}
+aggr_tipo_US_tbl <- 
+mfl_data %>%
+    group_by(PROVINCIA) %>%
+    count(TIPO_US, name = "n_US") %>%
+    pivot_wider(names_from = TIPO_US, values_from = n_US, values_fill = list(n_US = 0)) %>% 
+    ungroup() 
+
+# Podemos adicionar o valor total das unidades sanitárias por provincia.
+aggr_tipo_US_tbl$TOTAL <- rowSums(aggr_tipo_US_tbl[ , -1])
+
+aggr_tipo_US_tbl
+```
+ 
+ 
+### 2.2 Classificação
+
+```{r}
+mfl_data %>% 
+    group_by(PROVINCIA) %>% 
+    count(CLASSIFICACAO, name = "No_Unidade") %>% 
+    pivot_wider(names_from = CLASSIFICACAO, values_from = No_Unidade, values_fill = list(No_Unidade = 0))
+    
+```
+
+ 
+## 3.0 Visualização por Mapa
+
+Podemos também visualizar as o número de unidades sanitárias atraves do mapa.
+
+```{r}
+# preparing mapdata
+df_mapdata <- 
+    # mfl_data_aggr %>% 
+ aggr_tipo_US_tbl %>% 
+    mutate(province_name = case_when(
+        as.character(PROVINCIA)  == 'CABO DELGADO' ~ 'Cabo Delgado',
+        as.character(PROVINCIA) == 'NIASSA' ~ 'Niassa',
+        as.character(PROVINCIA) == 'NAMPULA' ~ 'Nampula',
+        as.character(PROVINCIA) == 'ZAMBÉZIA' ~ 'Zambezia',
+        as.character(PROVINCIA) == 'TETE' ~ 'Tete',
+        as.character(PROVINCIA) == 'MANICA' ~ 'Manica',
+        as.character(PROVINCIA) == 'SOFALA' ~ 'Sofala',
+        as.character(PROVINCIA) == 'INHAMBANE' ~ 'Inhambane',
+        as.character(PROVINCIA) == 'GAZA' ~ 'Gaza',
+        as.character(PROVINCIA) == 'MAPUTO PROVÍNCIA' ~ 'Maputo',
+        as.character(PROVINCIA) == 'MAPUTO CIDADE' ~ 'Maputo',
+        TRUE ~ as.character(PROVINCIA))
+    )
+
+df_mapdata <-
+    df_mapdata %>%
+    group_by(province_name) %>%
+    # select(2:11) %>%
+    summarise_if(is.numeric, sum)
+# summarise_all(sum)
+   
+df_mapdata <- 
+df_mapdata %>% 
+    rename(value = TOTAL)
+
+```
+
+Visualização:
+```{r}
+hcmap("countries/mz/mz-all", name = "Unidade Sanitária", 
+      data = df_mapdata, 
+      value = "value",
+      joinBy = c('woe-name', 'province_name'), 
+      # dataLabels = list(
+      #                   # enabled = TRUE, 
+      #                   format = '{point.name}'),
+      borderColor = "#FAFAFA", borderWidth = 0.1,
+      tooltip = list(valueDecimals = 0, valuePrefix = "", valueSuffix = "")) %>% 
+    # hc_add_theme(hc_theme_db() ) %>% 
+    hc_add_theme(hc_theme_sandsignika() ) %>% 
+    # hc_add_theme(hc_theme_flat() ) %>% 
+    hc_chart(zoomType = "xy") %>%
+    hc_mapNavigation(enabled = TRUE) %>% 
+    hc_colorAxis(stops = color_stops(5)) %>% 
+    # hc_colorAxis(dataClasses = color_classes(c(0, 50, 100, 500, 1000, 10000))) %>%
+    hc_exporting(enabled = TRUE) %>% 
+    hc_tooltip(useHTML = TRUE,
+               headerFormat = '',
+               pointFormat = paste0('<b> {point.name} </b> <br>
+                                    Total: <b> {point.value} </b><br>
+                                    Hospital Provincial: <b> {point.HP:,0f} </b><br>
+                                    Hospital Distrital: <b> {point.HD:,0f} </b><br>
+                                    Centro de Saúde: <b> {point.CS:,0f} </b><br>') ) %>% 
+    hc_title(text = "UNIDADE SANITÁRIA")
+
+```
+
+ 
+## 3.0 Número de Camas: Maternidade e Internamento
+
+```{r}
+mfl_tbl <- 
+mfl_data %>%
+    group_by(PROVINCIA, DISTRITO, TIPO_US, TIPO, NIVEL) %>%
+    summarise(
+        TOTAL_CAMAS_MATERNIDADE = sum(NUM_CAMAS_MATERNIDADE),
+        TOTAL_CAMAS_INTERNAMENTO = sum(NUM_CAMAS_INTERNAMENTO),
+        TOTAL = sum(TOTAL)
+    ) %>% 
+    ungroup()
+
+
+mfl_tbl %>% 
+    group_by(PROVINCIA) %>%
+    summarise(
+        TOTAL_CAMAS_MATERNIDADE = sum(TOTAL_CAMAS_MATERNIDADE, na.rm = TRUE),
+        TOTAL_CAMAS_INTERNAMENTO = sum(TOTAL_CAMAS_INTERNAMENTO, na.rm = TRUE),
+        TOTAL = sum(TOTAL, na.rm = TRUE)
+    ) %>% 
+    mutate(Percentem = round((TOTAL/sum(TOTAL))*100, 1))
+```
+
+
