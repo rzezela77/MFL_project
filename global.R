@@ -19,6 +19,8 @@ library(readxl)
 
 library(highcharter)
 
+library(DT)
+
 # 1.1 Loading Data --------------------------------------------------------
 
 mfl_data <- read_excel(path = 'data/MFL_v28Abril2020.xlsx', sheet = 'RSP2020')
@@ -84,49 +86,37 @@ grupos_unid_sanitaria_tbl <-
 grupos_unid_sanitaria_tbl$Total <- rowSums(grupos_unid_sanitaria_tbl[, -c(1, 2)])
 
 
+# 3.0 Mapa ----------------------------------------------------------------
 
-# # re-order Province from north to south
-# grupos_unid_sanitaria_tbl$PROVINCIA <- factor(
-#     x = grupos_unid_sanitaria_tbl$PROVINCIA,
-#     levels = c(
-#         'CABO DELGADO',
-#         'NIASSA',
-#         'NAMPULA',
-#         'ZAMBÉZIA',
-#         'TETE',
-#         'MANICA',
-#         'SOFALA',
-#         'INHAMBANE',
-#         'GAZA',
-#         'MAPUTO PROVÍNCIA',
-#         'MAPUTO CIDADE'
-#     )
-# )
+# preparing mapdata
+df_mapdata <- 
+    grupos_unid_sanitaria_tbl %>% 
+    group_by(PROVINCIA) %>% 
+    mutate(province_name = case_when(
+        as.character(PROVINCIA)  == 'CABO DELGADO' ~ 'Cabo Delgado',
+        as.character(PROVINCIA) == 'NIASSA' ~ 'Niassa',
+        as.character(PROVINCIA) == 'NAMPULA' ~ 'Nampula',
+        as.character(PROVINCIA) == 'ZAMBÉZIA' ~ 'Zambezia',
+        as.character(PROVINCIA) == 'TETE' ~ 'Tete',
+        as.character(PROVINCIA) == 'MANICA' ~ 'Manica',
+        as.character(PROVINCIA) == 'SOFALA' ~ 'Sofala',
+        as.character(PROVINCIA) == 'INHAMBANE' ~ 'Inhambane',
+        as.character(PROVINCIA) == 'GAZA' ~ 'Gaza',
+        as.character(PROVINCIA) == 'MAPUTO PROVÍNCIA' ~ 'Maputo',
+        as.character(PROVINCIA) == 'MAPUTO CIDADE' ~ 'Maputo',
+        TRUE ~ as.character(PROVINCIA))
+    )
 
+df_mapdata <-
+    df_mapdata %>%
+    select(-DISTRITO) %>% 
+    group_by(province_name) %>%
+    # select(2:11) %>%
+    summarise_if(is.numeric, sum)
+# summarise_all(sum)
 
-# # rename some provinces name: ZAMBÉZIA to ZAMBEZIA and MAPUTO PROVÍNCIA to MAPUTO PROVINCIA
-# grupos_unid_sanitaria_tbl$PROVINCIA[which(grupos_unid_sanitaria_tbl$PROVINCIA == 'ZAMBÉZIA')] <- 'ZAMBEZIA'
-# grupos_unid_sanitaria_tbl$PROVINCIA[which(grupos_unid_sanitaria_tbl$PROVINCIA == 'MAPUTO PROVÍNCIA')] <- 'MAPUTO PROVINCIA'
-# # 
-# grupos_unid_sanitaria_tbl$PROVINCIA <- as.factor(grupos_unid_sanitaria_tbl$PROVINCIA)
-
-# # re-order Province from north to south
-# mfl_data$PROVINCIA <- factor(
-#     x = mfl_data$PROVINCIA,
-#     levels = c(
-#         'CABO DELGADO',
-#         'NIASSA',
-#         'NAMPULA',
-#         'ZAMBEZIA',
-#         'TETE',
-#         'MANICA',
-#         'SOFALA',
-#         'INHAMBANE',
-#         'GAZA',
-#         'MAPUTO PROVINCIA',
-#         'MAPUTO CIDADE'
-#     )
-# )
-
+df_mapdata <- 
+    df_mapdata %>% 
+    rename(value = Total)
 
 

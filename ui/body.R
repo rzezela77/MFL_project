@@ -91,7 +91,7 @@ body = argonDashBody(
         argonTab(
             tabName = "Mapa",
             active = F,
-            uiOutput("worldMapUI") %>% withSpinner()
+            uiOutput("mozMapUI") %>% withSpinner()
             
         ),
         argonTab(
@@ -103,22 +103,7 @@ body = argonDashBody(
         argonTab(
             tabName = "Tabelas",
             active = F,
-            argonRow(
-                argonColumn(
-                    width = 4,
-                    pickerInput(
-                        inputId = "countryNameInput_v2",
-                        label = strong("Select country:"),
-                        choices = c("All"),
-                        # choices = levels(dataframeTotal$countryName),
-                        selected = "Mozambique",
-                        width = "100%",
-                        options = list(`live-search` = TRUE),
-                        inline = F
-                    )
-                )
-            ),
-            uiOutput("forecastUI") %>% withSpinner()
+            uiOutput("tablesUI") %>% withSpinner()
         )
     )
 )

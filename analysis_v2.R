@@ -20,6 +20,10 @@ library(readxl)
 
 library(highcharter)
 
+library(DT)
+
+
+
 # 1.1 Loading Data --------------------------------------------------------
 
 mfl_data <- read_excel(path = 'data/MFL_v28Abril2020.xlsx', sheet = 'RSP2020')
@@ -268,4 +272,97 @@ hc_plot_US(data = grupos_unid_sanitaria_tbl, provincia = 'Todas')
 hc_plot_US(data = grupos_unid_sanitaria_tbl, provincia = 'NAMPULA')
 
 hc_plot_US(data = grupos_unid_sanitaria_tbl, provincia = 'ZAMBEZIA')
+
+
+# 4.0 DataTable -----------------------------------------------------------
+
+get_datatable(data = grupos_unid_sanitaria_tbl, provincia = 'Todas')
+
+get_datatable(data = grupos_unid_sanitaria_tbl, provincia = 'NAMPULA')
+
+DT::datatable(
+    grupos_unid_sanitaria_tbl,
+    filter = "top",
+    # # class = "stripe cell-border",
+    extensions = "Buttons",
+    options = list(
+        scrollX = TRUE,
+        dom = 'Brtip',
+        ordering = FALSE,
+        buttons = list(list(
+            extend = 'collection',
+            buttons = c('csv', 'excel', 'pdf'),
+            text = 'Download'
+        ))
+    )
+)
+
+
+
+# 5.0 Mapa ----------------------------------------------------------------
+
+mapdata <- get_data_from_map(download_map_data("countries/mz/mz-all"))
+
+mapdata %>% 
+    select('woe-name')
+
+# preparing mapdata
+df_mapdata <- 
+    grupos_unid_sanitaria_tbl %>% 
+    group_by(PROVINCIA) %>% 
+    mutate(province_name = case_when(
+        as.character(PROVINCIA) == 'MAPUTO PROVÍNCIA' ~ 'Maputo',
+        as.character(PROVINCIA) == 'MAPUTO CIDADE' ~ 'Maputo',
+        as.character(PROVINCIA)  == 'CABO DELGADO' ~ 'Cabo Delgado',
+        as.character(PROVINCIA) == 'NIASSA' ~ 'Niassa',
+        as.character(PROVINCIA) == 'NAMPULA' ~ 'Nampula',
+        as.character(PROVINCIA) == 'ZAMBÉZIA' ~ 'Zambezia',
+        as.character(PROVINCIA) == 'TETE' ~ 'Tete',
+        as.character(PROVINCIA) == 'MANICA' ~ 'Manica',
+        as.character(PROVINCIA) == 'SOFALA' ~ 'Sofala',
+        as.character(PROVINCIA) == 'INHAMBANE' ~ 'Inhambane',
+        as.character(PROVINCIA) == 'GAZA' ~ 'Gaza',
+        TRUE ~ as.character(PROVINCIA))
+    )
+
+df_mapdata <-
+    df_mapdata %>%
+    select(-DISTRITO) %>% 
+    group_by(province_name) %>%
+    # select(2:11) %>%
+    summarise_if(is.numeric, sum)
+# summarise_all(sum)
+
+df_mapdata <- 
+    df_mapdata %>% 
+    rename(value = Total)
+
+
+# visualization
+
+hcmap("countries/mz/mz-all", name = "Unidade Sanitária", 
+      data = df_mapdata, 
+      value = "value",
+      joinBy = c('woe-name', 'province_name'), 
+      # dataLabels = list(
+      #                   # enabled = TRUE, 
+      #                   format = '{point.name}'),
+      borderColor = "#FAFAFA", borderWidth = 0.1,
+      tooltip = list(valueDecimals = 0, valuePrefix = "", valueSuffix = "")) %>% 
+    # hc_add_theme(hc_theme_db() ) %>% 
+    hc_add_theme(hc_theme_sandsignika() ) %>% 
+    # hc_add_theme(hc_theme_flat() ) %>% 
+    hc_chart(zoomType = "xy") %>%
+    hc_mapNavigation(enabled = TRUE) %>% 
+    hc_colorAxis(stops = color_stops(5)) %>% 
+    # hc_colorAxis(dataClasses = color_classes(c(0, 50, 100, 500, 1000, 10000))) %>%
+    hc_exporting(enabled = TRUE) %>% 
+    hc_tooltip(useHTML = TRUE,
+               headerFormat = '',
+               pointFormat = paste0('<b> {point.name} </b> <br>
+                                    Total: <b> {point.value} </b><br>
+                                    Hospitais: <b> {point.Hospitais:,0f} </b><br>
+                                    Centros de Saude: <b> {point.Centros_Saude:,0f} </b><br>
+                                    Postos de Saude: <b> {point.Postos_Saude:,0f} </b><br>') ) %>% 
+    hc_title(text = "UNIDADE SANITÁRIA")
                   

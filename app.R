@@ -42,11 +42,11 @@ shiny::shinyApp(
         
         source(file = "server/02_serverDashboard.R", local = TRUE)
 
-        # source(file = "server/02_serverWorldMapUI.R", local = TRUE)
-        # 
-        # source(file = "server/03_serverComparisonUI.R", local = TRUE)
-        # 
-        # source(file = "server/04_serverForecastUI.R", local = TRUE)
+        source(file = "server/03_serverMozMap.R", local = TRUE)
+        
+        # source(file = "server/04_serverComparisonUI.R", local = TRUE)
+        
+        source(file = "server/05_serverTables.R", local = TRUE)
     }
 )
 

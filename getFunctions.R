@@ -129,3 +129,57 @@ hc_plot_US <-
     }
 
 
+get_datatable <- function(data = data,
+                          provincia = 'MAPUTO CIDADE') {
+    
+    v_provincia = as.character(provincia) 
+    
+    if (as.character(v_provincia) == 'Todas') {
+        # plot All provinces
+        dataset <-
+            data %>%
+            group_by(PROVINCIA) %>%
+            summarise(
+                total_hospital = sum(Hospitais),
+                total_centro_saude = sum(Centros_Saude),
+                total_posto_saude = sum(Postos_Saude),
+                grand_total = sum(Total)
+            )
+        
+        
+    } else{
+        # plot for Provinces
+        dataset <-
+            data %>%
+            # filter(PROVINCIA == 'NAMPULA') %>%
+            # filter(PROVINCIA == v_provincia) %>%
+            filter(str_detect(PROVINCIA, v_provincia )) %>% 
+            group_by(DISTRITO) %>%
+            summarise(
+                total_hospital = sum(Hospitais),
+                total_centro_saude = sum(Centros_Saude),
+                total_posto_saude = sum(Postos_Saude),
+                grand_total = sum(Total)
+            )
+    
+    }
+    
+    # datatable
+    DT::datatable(
+        dataset,
+        filter = "top",
+        # # class = "stripe cell-border",
+        extensions = "Buttons",
+        options = list(
+            scrollX = TRUE,
+            dom = 'Brtip',
+            ordering = FALSE,
+            buttons = list(list(
+                extend = 'collection',
+                buttons = c('csv', 'excel', 'pdf'),
+                text = 'Download'
+            ))
+        )
+    )
+    
+}
